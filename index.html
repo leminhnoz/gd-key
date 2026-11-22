@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cổng Xác Thực & Nhận Key - Geometry Dash</title>
+    <!-- MD5 Library for security verification and key calculation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        :root {
+            --primary: #00ff88;
+            --secondary: #00d2ff;
+            --dark-bg: #0d1117;
+            --card-bg: #161b22;
+            --text-color: #f0f6fc;
+            --accent: #ff0055;
+            --error: #ff4757;
+            --warning: #ffa502;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: radial-gradient(circle at top, #1a2332, var(--dark-bg));
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            border: 2px solid #30363d;
+            border-radius: 16px;
+            max-width: 520px;
+            width: 100%;
+            padding: 35px 30px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.15);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+
+        .container.error-mode {
+            border-color: var(--error);
+            box-shadow: 0 10px 30px rgba(255, 71, 87, 0.2);
+        }
+
+        .container.error-mode::before {
+            background: linear-gradient(90deg, var(--error), var(--warning));
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .badge.error-badge {
+            background: rgba(255, 71, 87, 0.15);
+            color: var(--error);
+            border-color: var(--error);
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #ffffff, #a5b4fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .error-title {
+            color: var(--error) !important;
+            -webkit-text-fill-color: initial !important;
+        }
+
+        p.desc {
+            color: #8b949e;
+            font-size: 14px;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .key-box {
+            background: #0d1117;
+            border: 2px dashed #30363d;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .key-title {
+            font-size: 12px;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+        }
+
+        .key-code {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 26px;
+            font-weight: bold;
+            color: var(--primary);
+            letter-spacing: 2px;
+            text-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+            user-select: all;
+            word-break: break-all;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary), #00b894);
+            color: #0d1117;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 255, 136, 0.4);
+        }
+
+        .btn.btn-discord {
+            background: linear-gradient(135deg, #5865F2, #4752C4);
+            color: #ffffff;
+        }
+
+        .btn.btn-discord:hover {
+            box-shadow: 0 6px 20px rgba(88, 101, 242, 0.4);
+        }
+
+        .timer-box {
+            background: rgba(22, 27, 34, 0.6);
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .timer-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .timer-item .num {
+            font-size: 22px;
+            font-weight: bold;
+            color: var(--secondary);
+            font-family: 'Consolas', monospace;
+        }
+
+        .timer-item .label {
+            font-size: 11px;
+            color: #8b949e;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .instructions {
+            text-align: left;
+            background: #11161d;
+            border-left: 3px solid var(--secondary);
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            font-size: 13px;
+            color: #c9d1d9;
+            margin-bottom: 20px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+
+        .instructions.error-instructions {
+            border-left-color: var(--error);
+            background: rgba(255, 71, 87, 0.08);
+            color: #ff9f9f;
+        }
+
+        .footer {
+            font-size: 12px;
+            color: #6e7681;
+            margin-top: 10px;
+        }
+
+        .security-badge {
+            font-size: 11px;
+            color: #3fb950;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="mainContainer">
+        <!-- SUCCESS STATE -->
+        <div id="successView">
+            <div class="badge">Xác Minh Link4M Thành Công</div>
+            <h1>CỔNG NHẬN KEY GEOMETRY DASH</h1>
+            <p class="desc">Bạn đã vượt qua liên kết xác thực! Dưới đây là mã Key 3 ngày hợp lệ của bạn.</p>
+
+            <div class="security-badge">
+                <span>🔒 Phiên lấy key được bảo vệ • Chỉ có hiệu lực cho bạn</span>
+            </div>
+
+            <div class="key-box">
+                <div class="key-title">MÃ KEY KÍCH HOẠT (3 NGÀY)</div>
+                <div class="key-code" id="keyCode">Đang tính toán...</div>
+            </div>
+
+            <button class="btn" id="copyBtn" onclick="copyKey()">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                Sao Chép Mã Key
+            </button>
+
+            <div class="timer-box">
+                <div class="timer-item"><span class="num" id="tDays">0</span><span class="label">Ngày</span></div>
+                <div class="timer-item"><span class="num" id="tHours">0</span><span class="label">Giờ</span></div>
+                <div class="timer-item"><span class="num" id="tMins">0</span><span class="label">Phút</span></div>
+                <div class="timer-item"><span class="num" id="tSecs">0</span><span class="label">Giây</span></div>
+            </div>
+
+            <div class="instructions">
+                <strong>HƯỚNG DẪN DÁN VÀO GAME:</strong>
+                <ol>
+                    <li>Bấm nút <b>Sao Chép Mã Key</b> ở trên.</li>
+                    <li>Mở file <b>Play_GeometryDash.exe</b> trong thư mục game.</li>
+                    <li>Chọn <b>[1] Nhập mã Key</b> và dán mã vào.</li>
+                    <li>Game sẽ tự động kích hoạt 3 ngày và mở ngay lập tức!</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- ERROR STATE (CHỐNG BOOKMARK & CHỐNG BYPASS LINK4M) -->
+        <div id="errorView" style="display: none;">
+            <div class="badge error-badge" id="errorBadge">Cảnh Báo Bảo Mật</div>
+            <h1 class="error-title" id="errorHeading">TRUY CẬP BỊ TỪ CHỐI</h1>
+            <p class="desc" id="errorMessage">Liên kết không hợp lệ hoặc đã hết hạn.</p>
+
+            <div class="instructions error-instructions" id="errorReasonBox">
+                <strong>LÝ DO BỊ TỪ CHỐI:</strong>
+                <p id="errorReasonDetail" style="margin-top: 5px; line-height: 1.5;"></p>
+            </div>
+
+            <a class="btn btn-discord" href="https://discord.gg" target="_blank">
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                </svg>
+                Vào Discord Gõ Lệnh /getkey
+            </a>
+        </div>
+
+        <div class="footer">
+            Geometry Dash Key System • Phát hành bởi Toberu'son
+        </div>
+    </div>
+
+    <script>
+        const SECRET_KEY = "GD_2026_TOBERUSON_KEYSYSTEM_SECURE_SALT";
+
+        // Kiểm tra tính hợp lệ của phiên truy cập (Anti-Bypass & Anti-Bookmark)
+        function verifyAccessSession() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const uid = urlParams.get('uid');
+            const t = parseInt(urlParams.get('t'));
+            const n = urlParams.get('n');
+            const sig = urlParams.get('sig');
+
+            const container = document.getElementById("mainContainer");
+            const successView = document.getElementById("successView");
+            const errorView = document.getElementById("errorView");
+            const errorHeading = document.getElementById("errorHeading");
+            const errorMessage = document.getElementById("errorMessage");
+            const errorReasonDetail = document.getElementById("errorReasonDetail");
+
+            function showError(heading, message, reason) {
+                container.classList.add("error-mode");
+                successView.style.display = "none";
+                errorView.style.display = "block";
+                errorHeading.innerText = heading;
+                errorMessage.innerText = message;
+                errorReasonDetail.innerHTML = reason;
+            }
+
+            // 1. Kiểm tra thiếu tham số (người dùng truy cập trực tiếp link website)
+            if (!uid || isNaN(t) || !n || !sig) {
+                showError(
+                    "TRUY CẬP TRỰC TIẾP BỊ CHẶN",
+                    "Bạn không thể truy cập trực tiếp vào trang này mà không qua Bot Discord!",
+                    "• Bạn đã mở link gốc hoặc bookmark trang web.<br>• Để nhận key, bạn bắt buộc phải vào Server Discord gõ lệnh <code>/getkey</code> và hoàn thành bước vượt link Link4M."
+                );
+                return false;
+            }
+
+            // 2. Kiểm tra tính toàn vẹn chữ ký bảo mật (chống sửa tham số url)
+            const expectedPayload = "GETKEY_" + uid + "_" + t + "_" + n + "_" + SECRET_KEY;
+            const expectedSig = CryptoJS.MD5(expectedPayload).toString(CryptoJS.enc.Hex).toUpperCase().substring(0, 10);
+
+            if (sig.toUpperCase() !== expectedSig) {
+                showError(
+                    "CHỮ KÝ BẢO MẬT KHÔNG HỢP LỆ",
+                    "Đường dẫn đã bị chỉnh sửa hoặc giả mạo thông số!",
+                    "• Chữ ký mã hóa của phiên không trùng khớp.<br>• Vui lòng không thay đổi bất kỳ ký tự nào trên đường dẫn và gõ lại <code>/getkey</code> trên Discord."
+                );
+                return false;
+            }
+
+            // 3. Kiểm tra thời hạn 15 phút của link (Chống Bookmark)
+            const nowSeconds = Math.floor(Date.now() / 1000);
+            const elapsedSeconds = nowSeconds - t;
+            const MAX_VALIDITY = 15 * 60; // 15 phút = 900 giây
+
+            if (elapsedSeconds > MAX_VALIDITY) {
+                showError(
+                    "PHIÊN LẤY KEY ĐÃ HẾT HẠN",
+                    "Liên kết này đã quá thời gian hiệu lực 15 phút!",
+                    "• <b>Bạn đã lưu Bookmark (Dấu trang) và mở lại?</b> Rất tiếc, mỗi link chỉ dùng được một lần trong 15 phút.<br>• Hết 3 ngày, bạn chỉ cần quay lại Discord gõ lại lệnh <code>/getkey</code> để tạo một link mới miễn phí!"
+                );
+                return false;
+            }
+
+            if (t > nowSeconds + 60) {
+                showError(
+                    "THỜI GIAN KHÔNG HỢP LỆ",
+                    "Thời gian tạo phiên vượt quá thời gian thực!",
+                    "• Vui lòng kiểm tra lại đồng hồ máy tính của bạn."
+                );
+                return false;
+            }
+
+            return true;
+        }
+
+        function updateKeyAndTimer() {
+            const nowSeconds = Math.floor(Date.now() / 1000);
+            const cycleLength = 3 * 86400; // 3 ngày
+            const cycle = Math.floor(nowSeconds / cycleLength);
+
+            // Tính toán mã Key hợp lệ của chu kỳ này
+            const payload = SECRET_KEY + "_3DAYS_" + cycle;
+            const fullHash = CryptoJS.MD5(payload).toString(CryptoJS.enc.Hex).toUpperCase();
+            const sig = fullHash.substring(0, 8);
+            const currentKey = "GD3D-" + cycle + "-" + sig;
+
+            document.getElementById("keyCode").innerText = currentKey;
+
+            // Tính thời gian đếm ngược còn lại của chu kỳ
+            const elapsed = nowSeconds % cycleLength;
+            const remaining = cycleLength - elapsed;
+
+            const d = Math.floor(remaining / 86400);
+            const h = Math.floor((remaining % 86400) / 3600);
+            const m = Math.floor((remaining % 3600) / 60);
+            const s = Math.floor(remaining % 60);
+
+            document.getElementById("tDays").innerText = d;
+            document.getElementById("tHours").innerText = h;
+            document.getElementById("tMins").innerText = m;
+            document.getElementById("tSecs").innerText = s;
+        }
+
+        function copyKey() {
+            const keyText = document.getElementById("keyCode").innerText;
+            navigator.clipboard.writeText(keyText).then(() => {
+                const btn = document.getElementById("copyBtn");
+                const oldHtml = btn.innerHTML;
+                btn.innerHTML = "✓ Đã Sao Chép Thành Công!";
+                btn.style.background = "#00d2ff";
+                setTimeout(() => {
+                    btn.innerHTML = oldHtml;
+                    btn.style.background = "";
+                }, 2000);
+            });
+        }
+
+        // Khởi động kiểm tra phiên truy cập
+        if (verifyAccessSession()) {
+            updateKeyAndTimer();
+            setInterval(updateKeyAndTimer, 1000);
+        }
+    </script>
+</body>
+</html>
